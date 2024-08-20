@@ -1,0 +1,318 @@
+Sub ModificarDocumentoWord()
+    ' Chama as funções para cada tipo de modificação
+    Call InserirContent
+    Call ModificarEtiquetasDeContenido
+    Call RemoverEtiquetaP
+    Call ModificarEtiquetasDeImagenDeBannerActual
+    Call ConverterListasEmBulletPoints
+    Call ConverterTitulosEmHeadings
+    ' Salva o documento
+    ActiveDocument.Save
+End Sub
+
+Sub InserirContent()
+    Dim wordDoc As Document
+    Dim rng As Range
+    
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
+    
+    With rng.Find
+        .text = "Nombre de la imagen: *.[jJ][pP][gG]"
+        .MatchWildcards = True
+        .Replacement.text = ""
+        .Forward = True
+        .Wrap = wdFindStop
+        
+        Do While .Execute
+            ' Move o cursor para o final do texto encontrado
+            rng.Collapse Direction:=wdCollapseEnd
+            
+            ' Insere "CONTENT:" sem herdar estilos
+            rng.InsertParagraphAfter
+            rng.InsertAfter "CONTENT:" & vbCrLf
+            
+            ' Remove qualquer estilo herdado
+            rng.MoveStartUntil Cset:=vbCr, Count:=wdBackward
+            rng.Style = wdStyleNormal
+            
+            ' Move o intervalo para continuar a busca
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+    
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set rng = Nothing
+End Sub
+
+Sub ModificarEtiquetasDeContenido()
+    Dim wordDoc As Document
+    Dim rng As Range
+    Dim startRange As Range
+    Dim endRange As Range
+    
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
+    
+    With rng.Find
+        .text = "ETIQUETAS DE CONTENIDO:"
+        .Replacement.text = "SEO:"
+        .Forward = True
+        .Wrap = wdFindStop
+        
+        Do While .Execute
+            ' Substitui "ETIQUETAS DE CONTENIDO:" por "SEO:"
+            rng.text = "SEO:"
+            rng.Collapse Direction:=wdCollapseEnd
+            
+            ' Define o início da seção a ser modificada
+            Set startRange = rng.Duplicate
+            startRange.Collapse Direction:=wdCollapseStart
+            rng.Collapse Direction:=wdCollapseEnd
+            
+            ' Busca o final da seção com textos coringa
+            With rng.Find
+                .text = "URL SUGERIDA: *^13"
+                .MatchWildcards = True
+                .Forward = True
+                .Wrap = wdFindStop
+                If .Execute Then
+                    Set endRange = rng.Duplicate
+                    endRange.Collapse Direction:=wdCollapseEnd
+                    
+                    ' Insere "FIN DE SEO" após o final da seção
+                    endRange.InsertParagraphAfter
+                    endRange.InsertAfter "FIN DE SEO" & vbCrLf
+                    endRange.Style = wdStyleNormal
+                End If
+            End With
+            
+            ' Move o intervalo para continuar a busca
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+    
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set rng = Nothing
+    Set startRange = Nothing
+    Set endRange = Nothing
+End Sub
+
+Sub RemoverEtiquetaP()
+    Dim wordDoc As Document
+    Dim rng As Range
+    
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
+    
+    With rng.Find
+        .text = "Etiqueta P: "
+        .Replacement.text = ""
+        .Forward = True
+        .Wrap = wdFindStop
+        
+        Do While .Execute
+            ' Remove "Etiqueta P: "
+            rng.text = ""
+            ' Move o intervalo para continuar a busca
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+    
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set rng = Nothing
+End Sub
+
+Sub ModificarEtiquetasDeImagenDeBannerActual()
+    Dim wordDoc As Document
+    Dim rng As Range
+    Dim startRange As Range
+    Dim endRange As Range
+    
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
+    
+    With rng.Find
+        .text = "ETIQUETAS DE IMAGEN DE BANNER ACTUAL:"
+        .Replacement.text = "ETIQUETAS DE IMAGEN:"
+        .Forward = True
+        .Wrap = wdFindStop
+        
+        Do While .Execute
+            ' Substitui "ETIQUETAS DE IMAGEN DE BANNER ACTUAL:" por "ETIQUETAS DE IMAGEN:"
+            rng.text = "ETIQUETAS DE IMAGEN:"
+            rng.Collapse Direction:=wdCollapseEnd
+            
+            ' Define o início da seção a ser modificada
+            Set startRange = rng.Duplicate
+            startRange.Collapse Direction:=wdCollapseStart
+            rng.Collapse Direction:=wdCollapseEnd
+            
+            ' Busca todas as ocorrências de "Nombre de la imagen: *"
+            With rng.Find
+                .text = "Nombre de la imagen: *^13"
+                .MatchWildcards = True
+                .Forward = True
+                .Wrap = wdFindStop
+                Do While .Execute
+                    ' Move o cursor para o final do texto encontrado
+                    rng.Collapse Direction:=wdCollapseEnd
+                    
+                    ' Insere "FIN DE ETIQUETAS" após o texto encontrado
+                    rng.InsertParagraphAfter
+                    rng.InsertAfter "FIN DE ETIQUETAS" & vbCrLf
+                    rng.MoveStartUntil Cset:=vbCr, Count:=wdBackward
+                    rng.Style = wdStyleNormal
+                    
+                    ' Move o intervalo para continuar a busca
+                    rng.Collapse Direction:=wdCollapseEnd
+                Loop
+            End With
+            
+            ' Move o intervalo para continuar a busca
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+    
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set rng = Nothing
+    Set startRange = Nothing
+    Set endRange = Nothing
+End Sub
+
+Sub ConverterListasEmBulletPoints()
+    Dim wordDoc As Document
+    Dim para As Paragraph
+    Dim listRange As Range
+    Dim startPos As Long
+    Dim endPos As Long
+    Dim inEtiquetasSection As Boolean
+    Dim itemCount As Integer
+
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+    inEtiquetasSection = False
+
+    ' Percorre todos os parágrafos do documento
+    For Each para In wordDoc.Paragraphs
+        ' Define o início da verificação
+        startPos = para.Range.Start
+
+        ' Verifica se estamos dentro da seção ETIQUETAS DE IMAGEN com uma linha antes e uma depois
+        If startPos > 0 Then ' Verifica o texto anterior
+            Dim prevText As String
+            prevText = wordDoc.Range(Start:=startPos - 1, End:=startPos).text
+            If InStr(prevText, "ETIQUETAS DE IMAGEN:") > 0 Then
+                inEtiquetasSection = True
+            ElseIf InStr(prevText, "FIN DE ETIQUETAS") > 0 Then
+                inEtiquetasSection = False
+            End If
+        End If
+
+        ' Verifica se deve ignorar a conversão
+        If inEtiquetasSection Then
+            ignoreConversion = True
+        Else
+            ignoreConversion = False
+        End If
+
+        If Not ignoreConversion Then
+            ' Verifica se o parágrafo começa com "-"
+            If Left(para.Range.text, 2) = "- " Then
+                itemCount = 1
+                Set listRange = para.Range.Duplicate
+
+                ' Percorre os parágrafos seguintes para contar a sequência de itens de lista
+                Do While Not para.Next Is Nothing And Left(para.Next.Range.text, 2) = "- "
+                    Set para = para.Next
+                    itemCount = itemCount + 1
+                    listRange.End = para.Range.End
+                Loop
+
+                ' Executa a conversão apenas se houver mais de um item de lista
+                If itemCount > 1 Then
+                    ' Converte o intervalo encontrado em bullet points
+                    listRange.ListFormat.ApplyBulletDefault
+                End If
+            End If
+        End If
+    Next para
+
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set listRange = Nothing
+End Sub
+
+Sub ConverterTitulosEmHeadings()
+    Dim wordDoc As Document
+    Dim rng As Range
+    Dim i As Integer
+    Dim estilo As Style
+    Dim estiloNames As Variant
+    Dim estiloName As Variant
+    Dim estiloPrefix As String
+
+    ' Define o documento atual
+    Set wordDoc = ActiveDocument
+
+    ' Definindo nomes de estilo possíveis em inglês, português e espanhol
+    estiloNames = Array("Heading ", "Título ", "Encabezado ")
+
+    ' Loop para H1 até H5
+    For i = 1 To 5
+        estiloPrefix = ""
+        Set estilo = Nothing
+        
+        ' Verifica se algum dos estilos existe
+        For Each estiloName In estiloNames
+            On Error Resume Next
+            Set estilo = wordDoc.Styles(estiloName & i)
+            On Error GoTo 0
+            If Not estilo Is Nothing Then
+                estiloPrefix = estiloName
+                Exit For
+            End If
+        Next estiloName
+        
+        ' Se nenhum dos estilos existir, cria um estilo temporário
+        If estilo Is Nothing Then
+            estiloPrefix = "Heading "
+            Set estilo = wordDoc.Styles.Add(Name:=estiloPrefix & i, Type:=wdStyleTypeParagraph)
+        End If
+
+        ' Define o intervalo de busca
+        Set rng = wordDoc.Content
+        
+        With rng.Find
+            .text = "H" & i & ": "
+            .Replacement.text = ""
+            .Forward = True
+            .Wrap = wdFindStop
+            
+            Do While .Execute
+                ' Remove "H#: "
+                rng.text = Replace(rng.text, "H" & i & ": ", "")
+                
+                ' Aplica o estilo de cabeçalho correspondente
+                rng.Style = estilo
+                
+                ' Move o intervalo para continuar a busca
+                rng.Collapse Direction:=wdCollapseEnd
+            Loop
+        End With
+    Next i
+    
+    ' Libera as variáveis
+    Set wordDoc = Nothing
+    Set rng = Nothing
+    Set estilo = Nothing
+End Sub
+
