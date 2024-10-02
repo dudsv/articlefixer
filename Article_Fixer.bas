@@ -28,10 +28,11 @@ End Sub
 Sub InserirContent()
     Dim wordDoc As Document
     Dim rng As Range
+    Dim contentInserted As Boolean
     
-    ' Define o documento atual
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
+    contentInserted = False
     
     With rng.Find
         .text = "Nombre de la imagen: *.[jJ][pP][gG]"
@@ -41,17 +42,22 @@ Sub InserirContent()
         .Wrap = wdFindStop
         
         Do While .Execute
-            rng.Collapse Direction:=wdCollapseEnd
-            
-            ' Insere "CONTENT:" sem herdar estilos
-            rng.InsertParagraphAfter
-            rng.InsertAfter "CONTENT:" & vbCrLf
-            rng.Style = wdStyleNormal
+            If Not contentInserted Then
+                rng.Collapse Direction:=wdCollapseEnd
+                
+                ' Insere "CONTENT:" sem herdar estilos
+                rng.InsertParagraphAfter
+                rng.InsertAfter "CONTENT:" & vbCrLf
+                rng.Style = wdStyleNormal
+                
+                contentInserted = True
+            End If
             
             rng.Collapse Direction:=wdCollapseEnd
         Loop
     End With
 End Sub
+
 
 Sub ModificarEtiquetasDeContenido()
     Dim wordDoc As Document
