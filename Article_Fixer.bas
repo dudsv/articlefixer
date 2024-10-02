@@ -6,16 +6,12 @@ Sub ModificarDocumentoWord()
     Call InserirContent
     Call ModificarEtiquetasDeContenido
     Call RemoverEtiquetaP
-    Call ModificarEtiquetasDeImagenDeBannerAtual
+    Call ModificarEtiquetasDeImagenDeBannerActual
     Call ConverterListasEmBulletPoints
     Call ConverterTitulosEmHeadings
-
-    ' Modificar "Resume" e configurar como Heading 5
-    Call ModificarResume
-
-    ' Remover o texto da seção Schema
-    Call RemoverTextoSchema
-
+    Call AplicarNegritoEConverterTexto
+    Call RemoverTextoEspecifico
+    
     ' Salva o documento
     ActiveDocument.Save
     MsgBox "Documento modificado com sucesso!", vbInformation
@@ -32,31 +28,25 @@ End Sub
 Sub InserirContent()
     Dim wordDoc As Document
     Dim rng As Range
-    Dim contentInserted As Boolean
     
     ' Define o documento atual
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
-    contentInserted = False
     
     With rng.Find
         .text = "Nombre de la imagen: *.[jJ][pP][gG]"
         .MatchWildcards = True
+        .Replacement.text = ""
         .Forward = True
         .Wrap = wdFindStop
         
         Do While .Execute
-            If Not contentInserted Then
-                rng.Collapse Direction:=wdCollapseEnd
+            rng.Collapse Direction:=wdCollapseEnd
             
-                ' Insere "CONTENT:" sem herdar estilos
-                rng.InsertParagraphAfter
-                rng.InsertAfter "CONTENT:" & vbCrLf
-                rng.Style = wdStyleNormal
-                rng.ParagraphFormat.Alignment = wdAlignParagraphLeft ' Align left
-                
-                contentInserted = True ' Ensure "CONTENT:" is only added once
-            End If
+            ' Insere "CONTENT:" sem herdar estilos
+            rng.InsertParagraphAfter
+            rng.InsertAfter "CONTENT:" & vbCrLf
+            rng.Style = wdStyleNormal
             
             rng.Collapse Direction:=wdCollapseEnd
         Loop
@@ -66,44 +56,47 @@ End Sub
 Sub ModificarEtiquetasDeContenido()
     Dim wordDoc As Document
     Dim rng As Range
+    Dim startRange As Range
+    Dim endRange As Range
     Dim idiomas As Variant
     Dim i As Integer
-
+    
     idiomas = Array("ETIQUETAS DE CONTENIDO:", "SEO:", _
                     "ETIQUETAS DE CONTEÚDO:", "SEO:", _
                     "ETIQUETAS DE CONTENIDO:", "SEO:")
-
+    
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
-
+    
     For i = LBound(idiomas) To UBound(idiomas) Step 2
         With rng.Find
             .text = idiomas(i)
             .Replacement.text = idiomas(i + 1)
             .Forward = True
             .Wrap = wdFindStop
-
+            
             Do While .Execute
                 rng.text = idiomas(i + 1)
                 rng.Collapse Direction:=wdCollapseEnd
-
-                ' Search only for "URL SUGERIDA:" and remove the entire line containing it
+                
+                Set startRange = rng.Duplicate
+                startRange.Collapse Direction:=wdCollapseStart
+                rng.Collapse Direction:=wdCollapseEnd
+                
                 With rng.Find
-                    .text = "URL SUGERIDA:*^13"
+                    .text = "URL SUGERIDA: *^13"
                     .MatchWildcards = True
                     .Forward = True
                     .Wrap = wdFindStop
                     If .Execute Then
-                        ' Only delete the "URL SUGERIDA:..." line
-                        rng.Delete
+                        Set endRange = rng.Duplicate
+                        endRange.Collapse Direction:=wdCollapseEnd
+                        
+                        endRange.InsertParagraphAfter
+                        endRange.InsertAfter "FIN DE SEO" & vbCrLf
+                        endRange.Style = wdStyleNormal
                     End If
                 End With
-
-                ' Insert "FIN DE SEO" after removing "URL SUGERIDA"
-                rng.InsertParagraphAfter
-                rng.InsertAfter "FIN DE SEO" & vbCrLf
-                rng.Style = wdStyleNormal
-                rng.ParagraphFormat.Alignment = wdAlignParagraphLeft
                 rng.Collapse Direction:=wdCollapseEnd
             Loop
         End With
@@ -136,16 +129,16 @@ Sub RemoverEtiquetaP()
     Next i
 End Sub
 
-Sub ModificarEtiquetasDeImagenDeBannerAtual()
+Sub ModificarEtiquetasDeImagenDeBannerActual()
     Dim wordDoc As Document
     Dim rng As Range
     Dim startRange As Range
     Dim idiomas As Variant
     Dim i As Integer
     
-    idiomas = Array("ETIQUETAS DE IMAGEM DE BANNER ATUAL:", "ETIQUETAS DE IMAGEM:", _
+    idiomas = Array("ETIQUETAS DE IMAGEN DE BANNER ACTUAL:", "ETIQUETAS DE IMAGEN:", _
                     "ETIQUETAS DE IMAGEM DO BANNER ATUAL:", "ETIQUETAS DE IMAGEM:", _
-                    "ETIQUETAS DE IMAGEM DE BANNER ATUAL:", "ETIQUETAS DE IMAGEM:")
+                    "ETIQUETAS DE IMAGEN DE BANNER ACTUAL:", "ETIQUETAS DE IMAGEN:")
     
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
@@ -159,7 +152,6 @@ Sub ModificarEtiquetasDeImagenDeBannerAtual()
             
             Do While .Execute
                 rng.text = idiomas(i + 1)
-                rng.Font.Bold = True ' Make the title bold
                 rng.Collapse Direction:=wdCollapseEnd
                 
                 Set startRange = rng.Duplicate
@@ -196,7 +188,7 @@ Sub ConverterListasEmBulletPoints()
     inEtiquetasSection = False
     
     For Each para In wordDoc.Paragraphs
-        If InStr(para.Range.text, "ETIQUETAS DE IMAGEM:") > 0 Or _
+        If InStr(para.Range.text, "ETIQUETAS DE IMAGEN:") > 0 Or _
            InStr(para.Range.text, "FIN DE ETIQUETAS") > 0 Then
             inEtiquetasSection = Not inEtiquetasSection
         End If
@@ -226,15 +218,16 @@ Sub ConverterTitulosEmHeadings()
     Dim estiloNames As Variant
     Dim estiloName As Variant
     Dim estiloPrefix As String
-    Dim headingText As String
-    
+
     Set wordDoc = ActiveDocument
     estiloNames = Array("Heading ", "Título ", "Encabezado ")
-    
+
+    ' Loop to convert H1 to H5
     For i = 1 To 5
         estiloPrefix = ""
         Set estilo = Nothing
         
+        ' Find the correct style based on the language
         For Each estiloName In estiloNames
             On Error Resume Next
             Set estilo = wordDoc.Styles(estiloName & i)
@@ -245,40 +238,23 @@ Sub ConverterTitulosEmHeadings()
             End If
         Next estiloName
         
+        ' If the style doesn't exist, create it
         If estilo Is Nothing Then
             estiloPrefix = "Heading "
             Set estilo = wordDoc.Styles.Add(Name:=estiloPrefix & i, Type:=wdStyleTypeParagraph)
         End If
         
+        ' Apply the found style to headings
         Set rng = wordDoc.Content
         
-        ' Handle cases with <hX> format and remove HTML tags
         With rng.Find
-            .text = "<h" & i & ">*</h" & i & ">"
-            .MatchWildcards = True
+            .text = "H" & i & ": "
             .Replacement.text = ""
             .Forward = True
             .Wrap = wdFindStop
             
             Do While .Execute
-                headingText = Trim(Replace(Replace(rng.text, "<h" & i & ">", ""), "</h" & i & ">", ""))
-                rng.text = headingText ' Remove HTML tags
-                rng.Style = estilo
-                rng.Collapse Direction:=wdCollapseEnd
-            Loop
-        End With
-        
-        ' Normal detection for headings like "H" & i & ": "
-        With rng.Find
-            .text = "H" & i & ": *"
-            .MatchWildcards = True
-            .Replacement.text = ""
-            .Forward = True
-            .Wrap = wdFindStop
-            
-            Do While .Execute
-                headingText = Trim(Replace(rng.text, "H" & i & ": ", ""))
-                rng.text = headingText
+                rng.text = Replace(rng.text, "H" & i & ": ", "")
                 rng.Style = estilo
                 rng.Collapse Direction:=wdCollapseEnd
             Loop
@@ -286,40 +262,94 @@ Sub ConverterTitulosEmHeadings()
     Next i
 End Sub
 
-Sub ModificarResume()
+Sub AplicarNegritoEConverterTexto()
     Dim wordDoc As Document
     Dim rng As Range
+    Dim found As Boolean
     
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
     
-    With rng.Find
-        .text = "Resume"
-        .Forward = True
-        .Wrap = wdFindStop
+    ' Aplica negrito e converte os textos específicos
+    found = True
+    Do While found
+        found = False
         
-        If .Execute Then
-            rng.text = "" ' Remove "Resume"
-            rng.Collapse Direction:=wdCollapseEnd
+        With rng.Find
+            .text = "Text Alt:"
+            .Replacement.text = ""
+            .Forward = True
+            .Wrap = wdFindStop
+            .Format = True
+            .MatchCase = False
+            .MatchWholeWord = True
+            .MatchWildcards = False
+            .MatchSoundsLike = False
+            .MatchAllWordForms = False
             
-            ' Set the rest of the text as H5 heading
-            Do While rng.Paragraphs(1).Range.text <> ""
-                rng.Style = "Heading 5" ' Change to Heading 5 style
-                rng.Collapse Direction:=wdCollapseEnd
-            Loop
-        End If
-    End With
+            If .Execute Then
+                rng.Font.Bold = True
+                rng.text = "Alt text:"
+                found = True
+            End If
+        End With
+        
+        With rng.Find
+            .text = "Title de la Imagen:"
+            .Replacement.text = ""
+            .Forward = True
+            .Wrap = wdFindStop
+            .Format = True
+            .MatchCase = False
+            .MatchWholeWord = True
+            .MatchWildcards = False
+            .MatchSoundsLike = False
+            .MatchAllWordForms = False
+            
+            If .Execute Then
+                If InStr(rng.text, "Nombre de la imagen:") = 0 Then
+                    rng.Font.Bold = True
+                    rng.text = "Title:"
+                    found = True
+                Else
+                    rng.Font.Bold = True
+                    found = True
+                End If
+            End If
+        End With
+        
+        With rng.Find
+            .text = "Nombre de la imagen:"
+            .Replacement.text = ""
+            .Forward = True
+            .Wrap = wdFindStop
+            .Format = True
+            .MatchCase = False
+            .MatchWholeWord = True
+            .MatchWildcards = False
+            .MatchSoundsLike = False
+            .MatchAllWordForms = False
+            
+            If .Execute Then
+                rng.Font.Bold = True
+                found = True
+            End If
+        End With
+        
+        ' Move to the end of the document for next iteration
+        rng.Collapse Direction:=wdCollapseEnd
+    Loop
 End Sub
-
-Sub RemoverTextoSchema()
+Sub RemoverTextoEspecifico()
     Dim wordDoc As Document
     Dim rng As Range
     
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
-
+    
+    ' Remover "Recomendación:"
     With rng.Find
-        .text = "Recomendación: " & vbCrLf & "Se debe copiar el código que se encuentra dentro del recuadro y pegarlo en la sección <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
+        .text = "Recomendación:"
         .Replacement.text = ""
         .Forward = True
         .Wrap = wdFindStop
@@ -329,6 +359,22 @@ Sub RemoverTextoSchema()
             rng.Collapse Direction:=wdCollapseEnd
         Loop
     End With
+    
+    ' Remover "Se debe copiar el código que se encuentra dentro del recuadro y pegarlo en la sección <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
+    With rng.Find
+        .text = "Se debe copiar el código que se encuentra dentro del recuadro y pegarlo en la sección <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
+        .Replacement.text = ""
+        .Forward = True
+        .Wrap = wdFindStop
+        
+        Do While .Execute
+            rng.text = ""
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+    
+    ' Limpar formatação residual
+    rng.Font.Reset
+    rng.ParagraphFormat.Reset
 End Sub
-
 
