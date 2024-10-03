@@ -11,6 +11,8 @@ Sub ModificarDocumentoWord()
     Call ConverterTitulosEmHeadings
     Call AplicarNegritoEConverterTexto
     Call RemoverTextoEspecifico
+    Call RemoverTextoEspecifico2
+
     
     ' Salva o documento
     ActiveDocument.Save
@@ -267,7 +269,6 @@ Sub ConverterTitulosEmHeadings()
         End With
     Next i
 End Sub
-
 Sub AplicarNegritoEConverterTexto()
     Dim wordDoc As Document
     Dim rng As Range
@@ -281,6 +282,7 @@ Sub AplicarNegritoEConverterTexto()
     Do While found
         found = False
         
+        ' Check and change "Text Alt:"
         With rng.Find
             .text = "Text Alt:"
             .Replacement.text = ""
@@ -290,8 +292,6 @@ Sub AplicarNegritoEConverterTexto()
             .MatchCase = False
             .MatchWholeWord = True
             .MatchWildcards = False
-            .MatchSoundsLike = False
-            .MatchAllWordForms = False
             
             If .Execute Then
                 rng.Font.Bold = True
@@ -300,87 +300,83 @@ Sub AplicarNegritoEConverterTexto()
             End If
         End With
         
+        ' Check and change "Title de la Imagen:" (with variations)
         With rng.Find
-            .text = "Title de la Imagen:"
+            .text = "Title de la Imagen:*" ' Use wildcard to match any variations
             .Replacement.text = ""
             .Forward = True
             .Wrap = wdFindStop
             .Format = True
             .MatchCase = False
-            .MatchWholeWord = True
-            .MatchWildcards = False
-            .MatchSoundsLike = False
-            .MatchAllWordForms = False
-            
-            If .Execute Then
-                If InStr(rng.text, "Nombre de la imagen:") = 0 Then
-                    rng.Font.Bold = True
-                    rng.text = "Title:"
-                    found = True
-                Else
-                    rng.Font.Bold = True
-                    found = True
-                End If
-            End If
-        End With
-        
-        With rng.Find
-            .text = "Nombre de la imagen:"
-            .Replacement.text = ""
-            .Forward = True
-            .Wrap = wdFindStop
-            .Format = True
-            .MatchCase = False
-            .MatchWholeWord = True
-            .MatchWildcards = False
-            .MatchSoundsLike = False
-            .MatchAllWordForms = False
+            .MatchWholeWord = False
+            .MatchWildcards = True
             
             If .Execute Then
                 rng.Font.Bold = True
+                rng.text = "Title:" ' Change the text
                 found = True
             End If
         End With
         
-        ' Move to the end of the document for next iteration
+        ' Check and change "Nombre de la imagen:" (with variations)
+        With rng.Find
+            .text = "Nombre de la imagen:*" ' Use wildcard to match any variations
+            .Replacement.text = ""
+            .Forward = True
+            .Wrap = wdFindStop
+            .Format = True
+            .MatchCase = False
+            .MatchWholeWord = False
+            .MatchWildcards = True
+            
+            If .Execute Then
+                rng.Font.Bold = True
+                rng.text = "Nombre de la imagen:" ' Ensure correct formatting
+                found = True
+            End If
+        End With
+        
+        ' Move to the end of the document for the next iteration
         rng.Collapse Direction:=wdCollapseEnd
     Loop
 End Sub
+
 Sub RemoverTextoEspecifico()
-    Dim wordDoc As Document
+    ' Remove specific unwanted text with special handling for spaces and accented characters
     Dim rng As Range
+    Set rng = ActiveDocument.Content
     
-    Set wordDoc = ActiveDocument
-    Set rng = wordDoc.Content
-    
-    ' Remover "Recomendación:"
+    ' Remove the specific instructional text
     With rng.Find
-        .text = "Recomendación:"
+        ' Use wildcards to account for spaces or formatting changes
+        .text = "Se debe*copiar*el*código*que*encuentra*dentro*del*recuadro*y*pegarlo*en*sección*<head>*del*documento*HTML*del*sitio*web.*Es*importante*que*no*modifique*el*contenido*del*mismo."
+        .MatchWildcards = True
         .Replacement.text = ""
-        .Forward = True
         .Wrap = wdFindStop
-        
         Do While .Execute
-            rng.text = ""
+            rng.text = ""  ' Clear the found text
             rng.Collapse Direction:=wdCollapseEnd
         Loop
     End With
-    
-    ' Remover "Se debe copiar el código que se encuentra dentro del recuadro y pegarlo en la sección <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
-    With rng.Find
-        .text = "Se debe copiar el código que se encuentra dentro del recuadro y pegarlo en la sección <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
-        .Replacement.text = ""
-        .Forward = True
-        .Wrap = wdFindStop
-        
-        Do While .Execute
-            rng.text = ""
-            rng.Collapse Direction:=wdCollapseEnd
-        Loop
-    End With
-    
-    ' Limpar formatação residual
-    rng.Font.Reset
-    rng.ParagraphFormat.Reset
 End Sub
+Sub RemoverTextoEspecifico2()
+    ' Remove specific unwanted text with special handling for spaces and accented characters
+    Dim rng As Range
+    Set rng = ActiveDocument.Content
+    
+    ' Remove the specific instructional text
+    With rng.Find
+        ' Use wildcards to account for spaces or formatting changes
+        .text = "Recomendación:*"
+        .MatchWildcards = True
+        .Replacement.text = ""
+        .Wrap = wdFindStop
+        Do While .Execute
+            rng.text = ""  ' Clear the found text
+            rng.Collapse Direction:=wdCollapseEnd
+        Loop
+    End With
+End Sub
+
+
 
