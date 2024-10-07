@@ -9,9 +9,9 @@ Sub ModificarDocumentoWord()
     Call ModificarEtiquetasDeImagenDeBannerActual
     Call ConverterListasEmBulletPoints
     Call ConverterTitulosEmHeadings
-    Call AplicarNegritoEConverterTexto
     Call RemoverTextoEspecifico
-    Call RemoverTextoEspecifico2
+    Call EliminarSoloURLSugerida
+    Call AplicarConversionTexto
 
     
     ' Salva o documento
@@ -272,111 +272,144 @@ End Sub
 Sub AplicarNegritoEConverterTexto()
     Dim wordDoc As Document
     Dim rng As Range
-    Dim found As Boolean
+
+    Set wordDoc = ActiveDocument
+
+    ' Depuraci?n: Mensaje al comenzar la subrutina
+    MsgBox "Iniciando la subrutina para aplicar negrita.", vbInformation
+
+    ' Aplicar negrita a "Alt text:"
+    Set rng = wordDoc.Content ' Reiniciar el rango al inicio del documento
+    With rng.Find
+        .text = "Alt text:"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        Do While .Execute
+            MsgBox "'Alt text:' encontrado y negrita aplicada.", vbInformation ' Depuraci?n
+            rng.Font.Bold = True
+            rng.Collapse Direction:=wdCollapseEnd ' Mover el rango al final del texto encontrado
+        Loop
+    End With
+
+    ' Aplicar negrita a "Title:"
+    Set rng = wordDoc.Content ' Reiniciar el rango al inicio del documento
+    With rng.Find
+        .text = "Title:"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        Do While .Execute
+            MsgBox "'Title:' encontrado y negrita aplicada.", vbInformation ' Depuraci?n
+            rng.Font.Bold = True
+            rng.Collapse Direction:=wdCollapseEnd ' Mover el rango al final del texto encontrado
+        Loop
+    End With
+
+    ' Aplicar negrita a "Nombre de la imagen:"
+    Set rng = wordDoc.Content ' Reiniciar el rango al inicio del documento
+    With rng.Find
+        .text = "Nombre de la imagen:"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        Do While .Execute
+            MsgBox "'Nombre de la imagen:' encontrado y negrita aplicada.", vbInformation ' Depuraci?n
+            rng.Font.Bold = True
+            rng.Collapse Direction:=wdCollapseEnd ' Mover el rango al final del texto encontrado
+        Loop
+    End With
+
+End Sub
+
+Sub RemoverTextoEspecifico()
+    Dim wordDoc As Document
+    Dim rng As Range
     
     Set wordDoc = ActiveDocument
     Set rng = wordDoc.Content
     
-    ' Aplica negrito e converte os textos específicos
-    found = True
-    Do While found
-        found = False
-        
-        ' Check and change "Text Alt:"
-        With rng.Find
-            .text = "Text Alt:"
-            .Replacement.text = ""
-            .Forward = True
-            .Wrap = wdFindStop
-            .Format = True
-            .MatchCase = False
-            .MatchWholeWord = True
-            .MatchWildcards = False
-            
-            If .Execute Then
-                rng.Font.Bold = True
-                rng.text = "Alt text:"
-                found = True
-            End If
-        End With
-        
-        ' Check and change "Title de la Imagen:" (with variations)
-        With rng.Find
-            .text = "Title de la Imagen:*" ' Use wildcard to match any variations
-            .Replacement.text = ""
-            .Forward = True
-            .Wrap = wdFindStop
-            .Format = True
-            .MatchCase = False
-            .MatchWholeWord = False
-            .MatchWildcards = True
-            
-            If .Execute Then
-                rng.Font.Bold = True
-                rng.text = "Title:" ' Change the text
-                found = True
-            End If
-        End With
-        
-        ' Check and change "Nombre de la imagen:" (with variations)
-        With rng.Find
-            .text = "Nombre de la imagen:*" ' Use wildcard to match any variations
-            .Replacement.text = ""
-            .Forward = True
-            .Wrap = wdFindStop
-            .Format = True
-            .MatchCase = False
-            .MatchWholeWord = False
-            .MatchWildcards = True
-            
-            If .Execute Then
-                rng.Font.Bold = True
-                rng.text = "Nombre de la imagen:" ' Ensure correct formatting
-                found = True
-            End If
-        End With
-        
-        ' Move to the end of the document for the next iteration
-        rng.Collapse Direction:=wdCollapseEnd
-    Loop
-End Sub
-
-Sub RemoverTextoEspecifico()
-    ' Remove specific unwanted text with special handling for spaces and accented characters
-    Dim rng As Range
-    Set rng = ActiveDocument.Content
-    
-    ' Remove the specific instructional text
+    ' Remove "Recomendaci�n:"
     With rng.Find
-        ' Use wildcards to account for spaces or formatting changes
-        .text = "Se debe*copiar*el*código*que*encuentra*dentro*del*recuadro*y*pegarlo*en*sección*<head>*del*documento*HTML*del*sitio*web.*Es*importante*que*no*modifique*el*contenido*del*mismo."
-        .MatchWildcards = True
-        .Replacement.text = ""
+        .Text = "Recomendaci�n:"
+        .Replacement.Text = ""
+        .Forward = True
         .Wrap = wdFindStop
+        
         Do While .Execute
-            rng.text = ""  ' Clear the found text
+            rng.Text = ""
             rng.Collapse Direction:=wdCollapseEnd
         Loop
     End With
-End Sub
-Sub RemoverTextoEspecifico2()
-    ' Remove specific unwanted text with special handling for spaces and accented characters
-    Dim rng As Range
-    Set rng = ActiveDocument.Content
     
-    ' Remove the specific instructional text
+    ' Remove the specific long line
     With rng.Find
-        ' Use wildcards to account for spaces or formatting changes
-        .text = "Recomendación:*"
-        .MatchWildcards = True
-        .Replacement.text = ""
+        .Text = "Se debe copiar el c�digo que se encuentra dentro del recuadro y pegarlo en la secci�n <head> del documento HTML del sitio web. Es importante que no se modifique el contenido del mismo."
+        .Replacement.Text = ""
+        .Forward = True
         .Wrap = wdFindStop
+        
         Do While .Execute
-            rng.text = ""  ' Clear the found text
+            rng.Text = ""
             rng.Collapse Direction:=wdCollapseEnd
         Loop
     End With
+    
+    ' Clear residual formatting
+    rng.Font.Reset
+    rng.ParagraphFormat.Reset
 End Sub
 
+Sub EliminarSoloURLSugerida()
+    Dim wordDoc As Document
+    Dim rng As Range
 
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
 
+    ' Inicializar la b�squeda de "URL Sugerida:"
+    With rng.Find
+        .Text = "URL Sugerida:*.[jJ][pP][gG]" ' Buscar cualquier URL que termine con .jpg
+        .MatchWildcards = True ' Usar comodines para encontrar la URL completa
+        .Forward = True
+        .Wrap = wdFindContinue ' Continuar buscando en todo el documento
+        Do While .Execute
+            ' Eliminar solo la URL sugerida
+            rng.Delete ' Eliminar la URL encontrada sin tocar el resto del contenido
+        Loop
+    End With
+
+End Sub
+
+Sub AplicarConversionTexto()
+    Dim wordDoc As Document
+    Dim rng As Range
+
+    Set wordDoc = ActiveDocument
+    Set rng = wordDoc.Content
+
+    ' Convertir "Text Alt:" a "Alt text:"
+    With rng.Find
+        .Text = "Text Alt:"
+        .Replacement.Text = "Alt text:"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False ' Desactivar el formato para asegurarse de que busca en todo el texto
+        .MatchCase = False
+        .Execute Replace:=wdReplaceAll
+    End With
+    
+    ' Convertir "Title de la Imagen:" a "Title:"
+    With rng.Find
+        .Text = "Title de la Imagen:"
+        .Replacement.Text = "Title:"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False ' Asegurarse de que no est� buscando solo en textos con formato espec�fico
+        .MatchCase = False
+        .Execute Replace:=wdReplaceAll
+    End With
+End Sub
